@@ -4,7 +4,7 @@ plugins {
 }
 android {
     namespace = "com.anishexperiments.anishos.phone"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         applicationId = "com.anishexperiments.anishos"
         minSdk = 26
