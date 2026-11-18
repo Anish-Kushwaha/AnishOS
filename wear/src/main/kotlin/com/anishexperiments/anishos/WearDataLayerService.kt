@@ -18,6 +18,12 @@ class WearDataLayerService : WearableListenerService() {
                     .putBoolean(KEY_LINKED, false)
                     .apply()
             }
+            "/anishos/notifications/post" -> {
+                val payload = try { String(event.data, Charsets.UTF_8) } catch (_: Exception) { return }
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putString(KEY_LAST_NOTIFICATION, payload)
+                    .apply()
+            }
             else -> super.onMessageReceived(event)
         }
     }
@@ -29,5 +35,6 @@ class WearDataLayerService : WearableListenerService() {
         const val PREFS = "anishos_watch_link"
         const val KEY_LINKED_NODE = "linked_node"
         const val KEY_LINKED = "linked"
+        const val KEY_LAST_NOTIFICATION = "last_notification"
     }
 }

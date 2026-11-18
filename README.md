@@ -21,6 +21,10 @@
 - Bluetooth status display and system settings shortcut.
 - Wear OS Data Layer message client for companion discovery and pairing requests.
 - Listener service to receive phone-side link acceptance.
+- Uses the official Wear icon image committed at the repository root.
+- Optional passive health monitoring via AndroidX Health Services for heart rate, daily steps and daily calories, subject to watch support and Android permissions.
+- Health samples are sent only to the explicitly linked phone. The phone can optionally import recent sleep sessions from Health Connect after separate permission approval.
+- Local notification preview screen receives phone-relayed previews when the user has opted in.
 - Health, AI and system configuration screens with truthful feature availability.
 
 ### Android phone companion
@@ -33,6 +37,10 @@
 - Session tokens encrypted with Android Keystore AES-GCM.
 - After a user accepts a watch request, the phone creates a pending device record through the user's Supabase JWT and owner-scoped RLS.
 - AMOLED / neon-blue interface.
+- Uses the official Companion icon image committed at the repository root.
+- Optional notification listener bridge: disabled by default, requires the user to grant Android notification access, forwards previews only to the explicitly linked watch, and does not upload notification content to Supabase.
+- Health dashboard displays watch metrics and can import sleep sessions from Health Connect with a separate read permission.
+- Cloud health sync is opt-in. Health payloads are encrypted on the phone with AES-256-GCM using an Android Keystore key before upload; Supabase stores ciphertext and consent metadata under owner-scoped RLS. Revoking cloud consent deletes the user's encrypted batches.
 
 ### Web control centre
 
@@ -86,7 +94,7 @@ The project is not yet production-ready. Remaining release blockers include:
 
 1. Complete device identity provisioning: bind the local Data Layer link to a short-lived, single-use pairing challenge and revocable device credentials; add server-verified status transitions and heartbeat.
 2. Add durable local storage, offline queueing, retry/backoff, and conflict-safe cloud synchronization.
-3. Implement opt-in notification relay with explicit Android notification-listener consent and privacy controls.
+3. Finish notification relay hardening: per-app allowlists, redaction/content modes, removal synchronization, delivery acknowledgements, and physical-device validation. The current preview relay is opt-in and local-only but is an initial implementation.
 4. Integrate Health Services with granular permission, background limits, consent, retention and deletion controls.
 5. Implement AI through a server-side provider integration with user-configured provider/limits; never ship provider secrets in APKs.
 6. Add automated unit, instrumentation, integration, and device tests.

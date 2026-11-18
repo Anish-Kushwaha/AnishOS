@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-feature android:name="android.hardware.type.watch" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <queries><package android:name="com.google.android.apps.healthdata" /></queries>
     <application
+        android:icon="@mipmap/anishos_launcher"
+        android:roundIcon="@mipmap/anishos_launcher"
         android:allowBackup="false"
         android:label="AnishOS Companion"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:supportsRtl="true">
         <activity
-            android:name=".PhoneMainActivity"
+            android:name="com.anishexperiments.anishos.PhoneMainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -17,10 +21,19 @@
             </intent-filter>
         </activity>
         <service
-            android:name=".PhoneDataLayerService"
+            android:name="com.anishexperiments.anishos.PhoneDataLayerService"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.android.gms.wearable.BIND_LISTENER" />
+            </intent-filter>
+        </service>
+        <service
+            android:name="com.anishexperiments.anishos.NotificationRelayService"
+            android:label="AnishOS notification relay"
+            android:exported="false"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
     </application>

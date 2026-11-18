@@ -4,7 +4,7 @@ plugins {
 }
 android {
     namespace = "com.anishexperiments.anishos.phone"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         applicationId = "com.anishexperiments.anishos"
         minSdk = 26
@@ -21,6 +21,17 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 }
+// Use the official companion artwork committed at the repository root.
+tasks.register<Copy>("installCompanionLauncherIcon") {
+    from(rootProject.file("AnishOS-Phone-icon.png"))
+    into(layout.projectDirectory.dir("src/main/res/mipmap-nodpi"))
+    rename { "anishos_launcher.png" }
+}
+tasks.named("preBuild").configure { dependsOn("installCompanionLauncherIcon") }
+
 dependencies {
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
+    implementation("androidx.health.connect:connect-client:1.1.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("androidx.work:work-runtime-ktx:2.10.1")
 }

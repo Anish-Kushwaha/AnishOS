@@ -66,6 +66,7 @@ class MainActivity : Activity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == bluetoothPermissionRequest) showPhone()
+        if (requestCode == HealthSyncManager.PERMISSION_REQUEST) showHealth()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -248,8 +249,9 @@ class MainActivity : Activity() {
         actionCard("01", "◉", "FOCUS MODE", "25 MIN  /  LOCK IN") { showFocus() }
         actionCard("02", "⌁", "HEALTH SYSTEM", "SENSOR SYNC  /  OPT-IN") { showHealth() }
         actionCard("03", "⌘", "PHONE LINK", "BLUETOOTH  /  CONNECTIVITY") { showPhone() }
-        actionCard("04", "✳", "ANISH AI", "INTELLIGENCE  /  COMING SOON") { showAi() }
-        actionCard("05", "⚙", "SYSTEM CONFIG", "DISPLAY  /  PRIVACY  /  INFO") { showSettings() }
+        actionCard("04", "▣", "NOTIFICATIONS", "PHONE RELAY  /  OPT-IN") { showNotifications() }
+        actionCard("05", "✳", "ANISH AI", "INTELLIGENCE  /  COMING SOON") { showAi() }
+        actionCard("06", "⚙", "SYSTEM CONFIG", "DISPLAY  /  PRIVACY  /  INFO") { showSettings() }
 
         addGap(root, 5)
         centered("ANISH ENTERPRISES  •  EST. 2026", 7.5f, muted, true).also { root.addView(it) }
@@ -320,9 +322,29 @@ class MainActivity : Activity() {
 
     private fun showHealth() {
         page("BIO / ACTIVITY", "HEALTH SYSTEM", "YOUR DATA. YOUR CONTROL.")
-        infoPanel("●  PRIVACY STATUS", "Health data collection is currently OFF.")
-        infoPanel("SENSOR ACCESS", "Heart rate, activity and Health Services are not connected in this starter build.")
-        infoPanel("CLOUD SYNC", "No health metrics are being uploaded. Sensor access will require explicit permission and opt-in.")
+        val prefs = getSharedPreferences(HealthPassiveDataService.PREFS, MODE_PRIVATE)
+        val enabled = prefs.getBoolean(HealthPassiveDataService.KEY_ENABLED, false)
+        val heartRate = prefs.getFloat(HealthPassiveDataService.KEY_HEART_RATE, 0f)
+        val steps = prefs.getLong(HealthPassiveDataService.KEY_STEPS, 0L)
+        val calories = prefs.getFloat(HealthPassiveDataService.KEY_CALORIES, 0f)
+        val updated = prefs.getLong(HealthPassiveDataService.KEY_UPDATED_AT, 0L)
+        infoPanel("MONITORING", if (enabled) "Enabled by your choice." else "OFF — no passive collection until you opt in.")
+        infoPanel("HEART RATE", if (heartRate > 0f) "${heartRate.toInt()} BPM" else "Waiting for a supported heart-rate sample.")
+        infoPanel("DAILY STEPS", if (updated > 0L) steps.toString() else "Waiting for a supported step sample.")
+        infoPanel("DAILY CALORIES", if (updated > 0L) "${calories.toInt()} kcal" else "Waiting for a supported calorie sample.")
+        infoPanel("LAST UPDATE", if (updated > 0L) java.text.DateFormat.getDateTimeInstance().format(java.util.Date(updated)) else "No health sample received yet.")
+        infoPanel("CLOUD PRIVACY", "This watch sends metrics only to your explicitly linked phone. Cloud upload and consent are managed in AnishOS Companion.")
+        if (enabled) secondaryButton("DISABLE HEALTH MONITORING") {
+            HealthSyncManager.disable(this) { message ->
+                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
+                showHealth()
+            }
+        } else primaryButton("ENABLE HEALTH MONITORING") {
+            HealthSyncManager.enable(this) { message ->
+                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
+                showHealth()
+            }
+        }
         secondaryButton("BACK TO SYSTEM") { showHome() }
     }
 
@@ -412,6 +434,21 @@ class MainActivity : Activity() {
             .addOnFailureListener { error ->
                 companionStatusLabel?.text = error.localizedMessage ?: "DEVICE DISCOVERY FAILED"
             }
+    }
+
+    private fun showNotifications() {
+        page("PHONE / CONNECTIVITY", "NOTIFICATIONS", "LOCAL RELAY  /  USER OPT-IN")
+        val payload = getSharedPreferences(WearDataLayerService.PREFS, MODE_PRIVATE)
+            .getString(WearDataLayerService.KEY_LAST_NOTIFICATION, null)
+        if (payload.isNullOrBlank()) {
+            infoPanel("NO RECENT NOTIFICATIONS", "Enable the notification relay in AnishOS Companion and grant notification access in Android Settings.")
+        } else {
+            val data = try { org.json.JSONObject(payload) } catch (_: Exception) { org.json.JSONObject() }
+            infoPanel("LATEST FROM  /  ${data.optString("package", "APP")}", data.optString("title"))
+            infoPanel("MESSAGE", data.optString("text").ifBlank { "No message preview was provided." })
+        }
+        infoPanel("PRIVACY", "Notification previews are transferred directly from your phone to this watch. The relay is off by default and can be disabled in the companion app.")
+        secondaryButton("BACK TO SYSTEM") { showHome() }
     }
 
     private fun showAi() {
