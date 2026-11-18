@@ -168,6 +168,8 @@ class PhoneMainActivity : Activity() {
         healthMetricsLabel = text("Waiting for health metrics from your linked watch.", 12f, muted)
         root.addView(healthMetricsLabel)
         addGap(6)
+        root.addView(text("Only your health metrics and imported sleep summaries are eligible. Data is encrypted on this phone before upload; the server stores ciphertext. You can revoke consent and delete cloud batches here.", 10f, muted))
+        addGap(6)
         healthCloudStatusLabel = text("Cloud health sync is OFF until you explicitly consent.", 11f, cyan, true)
         root.addView(healthCloudStatusLabel)
         addGap(6)
