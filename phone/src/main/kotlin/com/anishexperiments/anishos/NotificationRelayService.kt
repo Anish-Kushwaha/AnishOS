@@ -22,6 +22,11 @@ class NotificationRelayService : NotificationListenerService() {
         val body = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.take(500).orEmpty()
         if (title.isBlank() && body.isBlank()) return
 
+        val linkPrefs = getSharedPreferences(PhoneDataLayerService.PREFS, MODE_PRIVATE)
+        if (!linkPrefs.getBoolean(PhoneDataLayerService.KEY_LINKED, false)) return
+        val watchNode = linkPrefs.getString(PhoneDataLayerService.KEY_LINKED_NODE, null)
+            ?.takeIf { it.isNotBlank() } ?: return
+
         val payload = JSONObject()
             .put("package", sbn.packageName.take(120))
             .put("title", title)
@@ -30,12 +35,8 @@ class NotificationRelayService : NotificationListenerService() {
             .toString()
             .toByteArray(Charsets.UTF_8)
 
-        Wearable.getNodeClient(this).connectedNodes
-            .addOnSuccessListener { nodes ->
-                nodes.forEach { node ->
-                    Wearable.getMessageClient(this).sendMessage(node.id, NOTIFICATION_PATH, payload)
-                }
-            }
+        Wearable.getMessageClient(this)
+            .sendMessage(watchNode, NOTIFICATION_PATH, payload)
     }
 
     companion object {
