@@ -18,6 +18,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import com.google.android.gms.wearable.Wearable
 import java.util.Locale
 
 /**
@@ -43,6 +44,7 @@ class MainActivity : Activity() {
     private lateinit var root: LinearLayout
     private lateinit var timerLabel: TextView
     private lateinit var focusActionButton: TextView
+    private var companionStatusLabel: TextView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -325,31 +327,71 @@ class MainActivity : Activity() {
     }
 
     private fun showPhone() {
-        page("WIRELESS CONTROL", "PHONE LINK", "BLUETOOTH  /  DEVICE STATUS")
+        page("WIRELESS CONTROL", "PHONE LINK", "WEAR OS DATA LAYER  /  APP LINK")
+        val manager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+        val enabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+        ) {
+            false
+        } else {
+            try { manager.adapter?.isEnabled == true } catch (_: SecurityException) { false }
+        }
+        infoPanel(
+            if (enabled) "●  RADIO ONLINE" else "○  RADIO STATUS",
+            if (enabled) "Bluetooth is enabled on this watch." else "Bluetooth status is unavailable or disabled."
+        )
+        val prefs = getSharedPreferences(WearDataLayerService.PREFS, MODE_PRIVATE)
+        val linked = prefs.getBoolean(WearDataLayerService.KEY_LINKED, false)
+        companionStatusLabel = label(
+            if (linked) "APP LINK CONFIRMED" else "NO ANISHOS PHONE LINK",
+            11f, if (linked) cyan else muted, true
+        )
+        val statusPanel = vertical()
+        statusPanel.setPadding(dp(13), dp(13), dp(13), dp(13))
+        statusPanel.background = rounded(surfaceRaised, border, 14)
+        statusPanel.addView(companionStatusLabel)
+        addGap(statusPanel, 6)
+        statusPanel.addView(label(
+            if (linked) "Your phone accepted the AnishOS app connection." else "Install AnishOS Companion on your Android phone, then request a connection.",
+            9f, muted
+        ))
+        root.addView(statusPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        primaryButton(if (linked) "REFRESH PHONE LINK" else "REQUEST PHONE LINK") { requestPhoneLink() }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
         ) {
-            infoPanel("PERMISSION REQUIRED", "Allow Bluetooth access to read the watch Bluetooth state.")
-            primaryButton("ALLOW BLUETOOTH") {
+            secondaryButton("ALLOW BLUETOOTH STATUS") {
                 requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_CONNECT), bluetoothPermissionRequest)
             }
-        } else {
-            val manager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
-            val enabled = try {
-                manager.adapter?.isEnabled == true
-            } catch (_: SecurityException) {
-                false
-            }
-            infoPanel(
-                if (enabled) "●  RADIO ONLINE" else "○  RADIO OFFLINE",
-                if (enabled) "Bluetooth is enabled on this watch." else "Bluetooth is currently disabled."
-            )
-            infoPanel("COMPANION LINK", "Phone pairing and notification relay are not implemented in this build yet.")
-            primaryButton("OPEN BLUETOOTH SETTINGS") {
-                startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
-            }
+        }
+        secondaryButton("OPEN BLUETOOTH SETTINGS") {
+            startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
         }
         secondaryButton("BACK TO SYSTEM") { showHome() }
+    }
+
+    private fun requestPhoneLink() {
+        companionStatusLabel?.text = "SEARCHING FOR COMPANION…"
+        Wearable.getNodeClient(this).connectedNodes
+            .addOnSuccessListener { nodes ->
+                if (nodes.isEmpty()) {
+                    companionStatusLabel?.text = "NO COMPATIBLE PHONE FOUND"
+                    return@addOnSuccessListener
+                }
+                nodes.forEach { node ->
+                    Wearable.getMessageClient(this)
+                        .sendMessage(node.id, WearDataLayerService.REQUEST_PATH, byteArrayOf())
+                        .addOnSuccessListener {
+                            companionStatusLabel?.text = "REQUEST SENT  /  CONFIRM ON PHONE"
+                        }
+                        .addOnFailureListener { error ->
+                            companionStatusLabel?.text = error.localizedMessage ?: "REQUEST FAILED"
+                        }
+                }
+            }
+            .addOnFailureListener { error ->
+                companionStatusLabel?.text = error.localizedMessage ?: "DEVICE DISCOVERY FAILED"
+            }
     }
 
     private fun showAi() {

@@ -6,4 +6,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "AnishOS"
-include(":wear")
+include(":wear", ":phone")
