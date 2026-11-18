@@ -45,7 +45,7 @@ object HealthSyncManager {
             try {
                 val capabilities = capabilitiesFuture.get()
                 val wanted = setOf(DataType.HEART_RATE_BPM, DataType.STEPS_DAILY, DataType.CALORIES_DAILY)
-                val supported = wanted.intersect(capabilities.getSupportedDataTypesPassiveMonitoring())
+                val supported = wanted.intersect(capabilities.supportedDataTypesPassiveMonitoring)
                 if (supported.isEmpty()) {
                     onStatus("This watch does not expose compatible passive health metrics.")
                     return@addListener
