@@ -20,6 +20,11 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
 import java.util.concurrent.Executors
 
+private const val SLEEP_PERMISSION_REQUEST = 701
+private const val HEALTH_CONNECT_PREFS = "anishos_health_connect"
+private const val KEY_SLEEP_SESSIONS = "sleep_sessions"
+private const val KEY_SLEEP_BUNDLE = "sleep_bundle"
+
 class PhoneMainActivity : Activity() {
     private val black = Color.rgb(0, 0, 0)
     private val panel = Color.rgb(8, 15, 25)
