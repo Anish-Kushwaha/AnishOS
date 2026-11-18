@@ -112,26 +112,28 @@ class HealthCloudRepository(private val context: Context) {
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key())
-        val encrypted = cipher.doFinal(payload.toByteArray(Charsets.UTF_8))
+        val envelope = JSONObject(payload).apply { if (optString("batchId").isBlank()) put("batchId", java.util.UUID.randomUUID().toString()) }
+        val encrypted = cipher.doFinal(envelope.toString().toByteArray(Charsets.UTF_8))
         val nonce = Base64.encodeToString(cipher.iv, Base64.NO_WRAP)
         val ciphertext = Base64.encodeToString(encrypted, Base64.NO_WRAP)
         val recordedAt = try {
-            org.json.JSONObject(payload).optLong("recordedAt", System.currentTimeMillis())
+            envelope.optLong("recordedAt", System.currentTimeMillis())
         } catch (_: Exception) { System.currentTimeMillis() }
 
         request(
-            "/rest/v1/encrypted_health_batches",
+            "/rest/v1/encrypted_health_batches?on_conflict=user_id,batch_id",
             "POST",
             valid.accessToken,
             JSONObject()
                 .put("user_id", valid.userId)
+                .put("batch_id", envelope.getString("batchId"))
                 .put("schema_version", 1)
                 .put("algorithm", "AES-256-GCM")
                 .put("key_version", "android-keystore-v1")
                 .put("nonce_b64", nonce)
                 .put("ciphertext_b64", ciphertext)
                 .put("recorded_at", java.time.Instant.ofEpochMilli(recordedAt).toString()),
-            "return=minimal"
+            "resolution=ignore-duplicates,return=minimal"
         )
         prefs.edit().putLong(KEY_LAST_SYNC, System.currentTimeMillis()).apply()
     }
@@ -148,19 +150,64 @@ class HealthCloudRepository(private val context: Context) {
 }
 
 object HealthCloudSync {
-    private val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private const val UNIQUE_WORK = "anishos-encrypted-health-sync"
+
     fun enqueue(context: Context, payload: String) {
         val app = context.applicationContext
-        executor.execute {
-            try {
-                val auth = PhoneAuthRepository(SecureSessionStore(app))
-                val session = auth.currentSession() ?: return@execute
-                HealthCloudRepository(app).syncEncrypted(session, payload)
-            } catch (_: Exception) {
-                // Keep the latest local sample; next incoming batch or manual retry can retry.
-                app.getSharedPreferences("anishos_health_cloud", Context.MODE_PRIVATE)
-                    .edit().putString("pending_payload", payload).apply()
+        if (!HealthCloudRepository(app).hasConsent()) return
+        synchronized(this) {
+            val prefs = app.getSharedPreferences(HealthCloudRepository.PREFS, Context.MODE_PRIVATE)
+            val queue = try { org.json.JSONArray(prefs.getString("pending_queue", "[]")) } catch (_: Exception) { org.json.JSONArray() }
+            val envelope = JSONObject(payload).apply {
+                if (optString("batchId").isBlank()) put("batchId", java.util.UUID.randomUUID().toString())
             }
+            if (queue.length() >= 250) queue.remove(0)
+            queue.put(envelope)
+            prefs.edit().putString("pending_queue", queue.toString()).apply()
+        }
+        schedule(app)
+    }
+
+    fun retry(context: Context) {
+        val app = context.applicationContext
+        val queue = app.getSharedPreferences(HealthCloudRepository.PREFS, Context.MODE_PRIVATE)
+            .getString("pending_queue", "[]") ?: "[]"
+        if (queue == "[]") return
+        schedule(app)
+    }
+
+    private fun schedule(context: Context) {
+        val constraints = androidx.work.Constraints.Builder()
+            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+            .build()
+        val request = androidx.work.OneTimeWorkRequestBuilder<HealthCloudSyncWorker>()
+            .setConstraints(constraints)
+            .build()
+        androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
+            UNIQUE_WORK, androidx.work.ExistingWorkPolicy.APPEND_OR_REPLACE, request
+        )
+    }
+}
+
+class HealthCloudSyncWorker(context: Context, params: androidx.work.WorkerParameters) :
+    androidx.work.Worker(context, params) {
+    override fun doWork(): Result {
+        val prefs = applicationContext.getSharedPreferences(HealthCloudRepository.PREFS, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(HealthCloudRepository.KEY_CONSENT, false)) return Result.success()
+        return try {
+            val session = PhoneAuthRepository(SecureSessionStore(applicationContext)).currentSession()
+                ?: return Result.retry()
+            while (true) {
+                val queue = try { org.json.JSONArray(prefs.getString("pending_queue", "[]")) } catch (_: Exception) { org.json.JSONArray() }
+                if (queue.length() == 0) break
+                HealthCloudRepository(applicationContext).syncEncrypted(session, queue.getJSONObject(0).toString())
+                val remaining = org.json.JSONArray()
+                for (index in 1 until queue.length()) remaining.put(queue.get(index))
+                prefs.edit().putString("pending_queue", remaining.toString()).apply()
+            }
+            Result.success()
+        } catch (_: Exception) {
+            Result.retry()
         }
     }
 }
