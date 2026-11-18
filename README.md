@@ -90,7 +90,7 @@ The project is not yet production-ready. Remaining release blockers include:
 7. Configure crash reporting, monitoring, backups, operational alerts and incident response.
 8. Create a protected release-signing process, versioned signed bundles/APKs, staged rollout and rollback.
 9. Test on physical Galaxy Watch4 hardware and supported Android phone/One UI versions.
-10. Enable Supabase leaked-password protection and review production Auth, rate-limit and email-confirmation settings.
+10. Enable Supabase leaked-password protection and review production Auth, rate-limit and email-confirmation settings. This project currently reports leaked-password protection as disabled.
 
 No health metrics or notifications are collected or relayed by the current build. AI is not connected. The current local link state is a development handshake only.
 
