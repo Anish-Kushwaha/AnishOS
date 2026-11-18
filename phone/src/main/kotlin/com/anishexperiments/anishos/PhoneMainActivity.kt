@@ -34,6 +34,8 @@ class PhoneMainActivity : Activity() {
     private lateinit var emailInput: EditText
     private lateinit var passwordInput: EditText
     private lateinit var authActions: LinearLayout
+    private lateinit var healthCloudStatusLabel: TextView
+    private lateinit var healthMetricsLabel: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -150,6 +152,19 @@ class PhoneMainActivity : Activity() {
                 .putBoolean(NotificationRelayService.KEY_RELAY_ENABLED, false).apply()
             actionLabel.text = "Notification relay disabled. No new notification text will be forwarded."
         }
+        addGap(12)
+        root.addView(text("HEALTH DATA  /  CLOUD SYNC", 10f, blue, true))
+        addGap(6)
+        healthMetricsLabel = text("Waiting for health metrics from your linked watch.", 12f, muted)
+        root.addView(healthMetricsLabel)
+        addGap(6)
+        healthCloudStatusLabel = text("Cloud health sync is OFF until you explicitly consent.", 11f, cyan, true)
+        root.addView(healthCloudStatusLabel)
+        addGap(6)
+        button("ENABLE ENCRYPTED HEALTH CLOUD SYNC") { enableHealthCloudSync() }
+        button("RETRY PENDING HEALTH SYNC") { retryHealthSync() }
+        button("REVOKE CONSENT AND DELETE CLOUD HEALTH DATA") { revokeHealthCloudSync() }
+        refreshHealthPanel()
         addGap(16)
         root.addView(text("Pairing uses the Wear OS Data Layer. Sign in to associate the watch record with your AnishOS account. This does not modify system Bluetooth pairing.", 11f, muted))
         addGap(14)
@@ -214,6 +229,94 @@ class PhoneMainActivity : Activity() {
             setOnClickListener { action() }
         }
         parent.addView(view, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(7) })
+    }
+
+    private fun refreshHealthPanel() {
+        val prefs = getSharedPreferences(PhoneDataLayerService.PREFS, MODE_PRIVATE)
+        val raw = prefs.getString(PhoneDataLayerService.KEY_LATEST_HEALTH, null)
+        healthMetricsLabel.text = if (raw.isNullOrBlank()) {
+            "No watch health sample received yet."
+        } else {
+            try {
+                val data = org.json.JSONObject(raw)
+                val hr = if (data.isNull("heartRateBpm")) "—" else "${data.optDouble("heartRateBpm").toInt()} BPM"
+                val steps = if (data.isNull("stepsToday")) "—" else data.optLong("stepsToday").toString()
+                val calories = if (data.isNull("caloriesTodayKcal")) "—" else "${data.optDouble("caloriesTodayKcal").toInt()} kcal"
+                "HEART RATE  $hr\nSTEPS TODAY  $steps\nCALORIES TODAY  $calories"
+            } catch (_: Exception) { "Received health data could not be displayed." }
+        }
+        val cloud = HealthCloudRepository(this)
+        healthCloudStatusLabel.text = if (cloud.hasConsent()) {
+            val last = cloud.lastSyncAt()
+            if (last > 0L) "ENCRYPTED CLOUD SYNC ENABLED  /  LAST SYNC ${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(last))}"
+            else "ENCRYPTED CLOUD SYNC ENABLED  /  WAITING FOR FIRST UPLOAD"
+        } else "CLOUD SYNC OFF  /  NO HEALTH UPLOAD WITHOUT YOUR CONSENT"
+    }
+
+    private fun enableHealthCloudSync() {
+        executor.execute {
+            try {
+                val session = auth.currentSession() ?: throw IllegalStateException("Sign in to your AnishOS account first.")
+                HealthCloudRepository(this).grantConsent(session)
+                val pending = getSharedPreferences(HealthCloudRepository.PREFS, MODE_PRIVATE)
+                    .getString("pending_payload", null)
+                val latest = getSharedPreferences(PhoneDataLayerService.PREFS, MODE_PRIVATE)
+                    .getString(PhoneDataLayerService.KEY_LATEST_HEALTH, null)
+                val payload = pending ?: latest
+                if (payload != null) {
+                    HealthCloudRepository(this).syncEncrypted(session, payload)
+                    getSharedPreferences(HealthCloudRepository.PREFS, MODE_PRIVATE).edit()
+                        .remove("pending_payload").apply()
+                }
+                runOnUiThread {
+                    refreshHealthPanel()
+                    actionLabel.text = "Health cloud consent enabled. Uploads are encrypted on this phone before leaving the device."
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    healthCloudStatusLabel.text = error.localizedMessage ?: "Could not enable encrypted health sync."
+                }
+            }
+        }
+    }
+
+    private fun retryHealthSync() {
+        executor.execute {
+            try {
+                val session = auth.currentSession() ?: throw IllegalStateException("Sign in again to sync health data.")
+                val cloud = HealthCloudRepository(this)
+                if (!cloud.hasConsent()) throw IllegalStateException("Enable cloud health consent first.")
+                val prefs = getSharedPreferences(HealthCloudRepository.PREFS, MODE_PRIVATE)
+                val pending = prefs.getString("pending_payload", null)
+                val latest = getSharedPreferences(PhoneDataLayerService.PREFS, MODE_PRIVATE)
+                    .getString(PhoneDataLayerService.KEY_LATEST_HEALTH, null)
+                val payload = pending ?: latest ?: throw IllegalStateException("No health sample is available to sync.")
+                cloud.syncEncrypted(session, payload)
+                prefs.edit().remove("pending_payload").apply()
+                runOnUiThread { refreshHealthPanel() }
+            } catch (error: Exception) {
+                runOnUiThread { healthCloudStatusLabel.text = error.localizedMessage ?: "Health sync retry failed." }
+            }
+        }
+    }
+
+    private fun revokeHealthCloudSync() {
+        executor.execute {
+            try {
+                val session = auth.currentSession() ?: throw IllegalStateException("Sign in again to revoke cloud consent.")
+                HealthCloudRepository(this).revokeConsentAndDelete(session)
+                getSharedPreferences(HealthCloudRepository.PREFS, MODE_PRIVATE).edit()
+                    .remove("pending_payload").apply()
+                runOnUiThread {
+                    refreshHealthPanel()
+                    actionLabel.text = "Cloud health consent revoked and encrypted cloud records deleted. Local watch metrics remain on your devices."
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    healthCloudStatusLabel.text = error.localizedMessage ?: "Could not revoke cloud health consent."
+                }
+            }
+        }
     }
 
     private fun refreshAccount() {
