@@ -66,6 +66,7 @@ class MainActivity : Activity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == bluetoothPermissionRequest) showPhone()
+        if (requestCode == HealthSyncManager.PERMISSION_REQUEST) showHealth()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -321,9 +322,29 @@ class MainActivity : Activity() {
 
     private fun showHealth() {
         page("BIO / ACTIVITY", "HEALTH SYSTEM", "YOUR DATA. YOUR CONTROL.")
-        infoPanel("●  PRIVACY STATUS", "Health data collection is currently OFF.")
-        infoPanel("SENSOR ACCESS", "Heart rate, activity and Health Services are not connected in this starter build.")
-        infoPanel("CLOUD SYNC", "No health metrics are being uploaded. Sensor access will require explicit permission and opt-in.")
+        val prefs = getSharedPreferences(HealthPassiveDataService.PREFS, MODE_PRIVATE)
+        val enabled = prefs.getBoolean(HealthPassiveDataService.KEY_ENABLED, false)
+        val heartRate = prefs.getFloat(HealthPassiveDataService.KEY_HEART_RATE, 0f)
+        val steps = prefs.getLong(HealthPassiveDataService.KEY_STEPS, 0L)
+        val calories = prefs.getFloat(HealthPassiveDataService.KEY_CALORIES, 0f)
+        val updated = prefs.getLong(HealthPassiveDataService.KEY_UPDATED_AT, 0L)
+        infoPanel("MONITORING", if (enabled) "Enabled by your choice." else "OFF — no passive collection until you opt in.")
+        infoPanel("HEART RATE", if (heartRate > 0f) "${heartRate.toInt()} BPM" else "Waiting for a supported heart-rate sample.")
+        infoPanel("DAILY STEPS", if (updated > 0L) steps.toString() else "Waiting for a supported step sample.")
+        infoPanel("DAILY CALORIES", if (updated > 0L) "${calories.toInt()} kcal" else "Waiting for a supported calorie sample.")
+        infoPanel("LAST UPDATE", if (updated > 0L) java.text.DateFormat.getDateTimeInstance().format(java.util.Date(updated)) else "No health sample received yet.")
+        infoPanel("CLOUD PRIVACY", "This watch sends metrics only to your explicitly linked phone. Cloud upload and consent are managed in AnishOS Companion.")
+        if (enabled) secondaryButton("DISABLE HEALTH MONITORING") {
+            HealthSyncManager.disable(this) { message ->
+                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
+                showHealth()
+            }
+        } else primaryButton("ENABLE HEALTH MONITORING") {
+            HealthSyncManager.enable(this) { message ->
+                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
+                showHealth()
+            }
+        }
         secondaryButton("BACK TO SYSTEM") { showHome() }
     }
 
