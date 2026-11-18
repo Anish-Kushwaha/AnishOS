@@ -13,16 +13,23 @@ object HealthSyncManager {
     const val PERMISSION_REQUEST = 420
 
     fun enable(activity: Activity, onStatus: (String) -> Unit) {
-        val permissions = mutableListOf(Manifest.permission.BODY_SENSORS)
+        val foregroundPermissions = mutableListOf(Manifest.permission.BODY_SENSORS)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            permissions += Manifest.permission.ACTIVITY_RECOGNITION
+            foregroundPermissions += Manifest.permission.ACTIVITY_RECOGNITION
         }
-        val missing = permissions.filter {
+        val missingForeground = foregroundPermissions.filter {
             activity.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
         }
-        if (missing.isNotEmpty()) {
-            activity.requestPermissions(missing.toTypedArray(), PERMISSION_REQUEST)
+        if (missingForeground.isNotEmpty()) {
+            activity.requestPermissions(missingForeground.toTypedArray(), PERMISSION_REQUEST)
             onStatus("Grant the requested sensor permissions, then tap Enable again.")
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            activity.checkSelfPermission(Manifest.permission.BODY_SENSORS_BACKGROUND) != PackageManager.PERMISSION_GRANTED
+        ) {
+            activity.requestPermissions(arrayOf(Manifest.permission.BODY_SENSORS_BACKGROUND), PERMISSION_REQUEST)
+            onStatus("Background heart-rate access is required for all-day passive monitoring. Choose All the time in sensor access settings, then tap Enable again.")
             return
         }
         register(activity, onStatus)
