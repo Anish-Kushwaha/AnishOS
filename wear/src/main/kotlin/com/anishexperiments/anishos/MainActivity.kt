@@ -248,8 +248,9 @@ class MainActivity : Activity() {
         actionCard("01", "◉", "FOCUS MODE", "25 MIN  /  LOCK IN") { showFocus() }
         actionCard("02", "⌁", "HEALTH SYSTEM", "SENSOR SYNC  /  OPT-IN") { showHealth() }
         actionCard("03", "⌘", "PHONE LINK", "BLUETOOTH  /  CONNECTIVITY") { showPhone() }
-        actionCard("04", "✳", "ANISH AI", "INTELLIGENCE  /  COMING SOON") { showAi() }
-        actionCard("05", "⚙", "SYSTEM CONFIG", "DISPLAY  /  PRIVACY  /  INFO") { showSettings() }
+        actionCard("04", "▣", "NOTIFICATIONS", "PHONE RELAY  /  OPT-IN") { showNotifications() }
+        actionCard("05", "✳", "ANISH AI", "INTELLIGENCE  /  COMING SOON") { showAi() }
+        actionCard("06", "⚙", "SYSTEM CONFIG", "DISPLAY  /  PRIVACY  /  INFO") { showSettings() }
 
         addGap(root, 5)
         centered("ANISH ENTERPRISES  •  EST. 2026", 7.5f, muted, true).also { root.addView(it) }
@@ -412,6 +413,21 @@ class MainActivity : Activity() {
             .addOnFailureListener { error ->
                 companionStatusLabel?.text = error.localizedMessage ?: "DEVICE DISCOVERY FAILED"
             }
+    }
+
+    private fun showNotifications() {
+        page("PHONE / CONNECTIVITY", "NOTIFICATIONS", "LOCAL RELAY  /  USER OPT-IN")
+        val payload = getSharedPreferences(WearDataLayerService.PREFS, MODE_PRIVATE)
+            .getString(WearDataLayerService.KEY_LAST_NOTIFICATION, null)
+        if (payload.isNullOrBlank()) {
+            infoPanel("NO RECENT NOTIFICATIONS", "Enable the notification relay in AnishOS Companion and grant notification access in Android Settings.")
+        } else {
+            val data = try { org.json.JSONObject(payload) } catch (_: Exception) { org.json.JSONObject() }
+            infoPanel("LATEST FROM  /  ${data.optString("package", "APP")}", data.optString("title"))
+            infoPanel("MESSAGE", data.optString("text").ifBlank { "No message preview was provided." })
+        }
+        infoPanel("PRIVACY", "Notification previews are transferred directly from your phone to this watch. The relay is off by default and can be disabled in the companion app.")
+        secondaryButton("BACK TO SYSTEM") { showHome() }
     }
 
     private fun showAi() {
