@@ -1,10 +1,11 @@
-name: Android Wear OS build
+name: Android application builds
 
 on:
   push:
     branches: [main]
     paths:
       - "wear/**"
+      - "phone/**"
       - "*.gradle.kts"
       - "settings.gradle.kts"
       - ".github/workflows/android.yml"
@@ -12,6 +13,7 @@ on:
     branches: [main]
     paths:
       - "wear/**"
+      - "phone/**"
       - "*.gradle.kts"
       - "settings.gradle.kts"
       - ".github/workflows/android.yml"
@@ -21,14 +23,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: anishos-wear-build-${{ github.ref }}
+  group: anishos-android-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-wear:
-    name: Build Wear OS APK
+  build-android:
+    name: Build phone and watch applications
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Check out source
         uses: actions/checkout@v7
@@ -54,10 +56,18 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Build Wear OS APK
-        run: gradle --no-daemon :wear:assembleDebug
+      - name: Assemble phone and watch debug packages
+        run: gradle --no-daemon :phone:assembleDebug :wear:assembleDebug
 
-      - name: Upload APK
+      - name: Upload phone companion APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: AnishOS-Phone-debug
+          path: phone/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Wear OS APK
         uses: actions/upload-artifact@v7
         with:
           name: AnishOS-Wear-debug

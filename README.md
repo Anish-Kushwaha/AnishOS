@@ -1,84 +1,97 @@
 # AnishOS
 
-**AnishOS** is a Wear OS companion ecosystem by Anish Enterprises, initially targeting the Samsung Galaxy Watch4. This repository contains the native watch starter app and the web control-center foundation.
+**AnishOS** is a native Android + Wear OS companion ecosystem by Anish Enterprises, initially targeting the Samsung Galaxy Watch4.
 
-> Current release: **0.1.0 — foundation build**. This is an early working foundation, not a replacement operating system or Samsung system launcher.
+> Current state: **0.2.0 integration foundation**. This is an active development build, not yet a production release.
 
 ## Repository layout
 
-- `app/`, `lib/` — Next.js companion dashboard.
-- `wear/` — native Android/Wear OS application (Kotlin).
-- `supabase/migrations/` — database schema migrations.
-- `.github/workflows/android.yml` — CI build for the Wear OS APK.
+- `app/`, `lib/` — Next.js web control centre.
+- `phone/` — native Android phone companion.
+- `wear/` — native Wear OS watch application.
+- `supabase/migrations/` — PostgreSQL schema migrations.
+- `.github/workflows/` — web CI and Android build pipelines.
 
-## Current functionality
+## Current implemented functionality
 
-### Wear OS app
-- AMOLED-dark AnishOS watch dashboard.
-- Focus mode with a working 25-minute countdown, pause and reset.
-- Bluetooth status check and shortcut to system Bluetooth settings.
-- Health, AI and phone-integration screens with clear status messaging.
-- Standalone Wear OS app package targeting API 30+.
+### Wear OS application
 
-### Web control center
-- Email/password account creation and sign-in through Supabase Auth.
-- Authenticated dashboard.
-- Register a Galaxy Watch4 account record.
-- View the user's own device records.
+- AMOLED-black / neon-blue AnishOS interface.
+- Focus timer with start, pause and reset.
+- Bluetooth status display and system settings shortcut.
+- Wear OS Data Layer message client for companion discovery and pairing requests.
+- Listener service to receive phone-side link acceptance.
+- Health, AI and system configuration screens with truthful feature availability.
+
+### Android phone companion
+
+- Native Android companion app.
+- Wear OS Data Layer listener.
+- Receives watch link requests.
+- User-confirmed app-link handshake and local link state.
+- AMOLED / neon-blue interface.
+
+### Web control centre
+
+- Supabase email/password account creation and sign-in.
+- Authenticated account dashboard.
+- User-owned watch records.
 - Responsive dark interface.
 
-### Backend and security
+### Backend
+
 - Dedicated Supabase project: `nueripsuvrfhylenqumi`.
-- PostgreSQL tables: `profiles`, `paired_devices`.
-- Row Level Security enabled on both tables.
-- Policies restrict each authenticated user to their own profile and device records.
-- Browser uses only the Supabase publishable key. Never place a Supabase secret/service-role key in the browser, watch APK or Git repository.
+- `profiles` and `paired_devices` tables.
+- Row Level Security enabled with owner-scoped policies.
+- Browser clients use the Supabase publishable key only.
 
-## Run the web dashboard locally
+## Android device-link protocol
 
-Requirements: Node.js 20+ and npm.
+The phone and watch applications share the same Android application ID and use Google Play services Wear OS Data Layer messages. The phone must have the companion installed and the user must explicitly accept a request.
 
-1. Install dependencies: `npm install`
+This is an app-to-app local link handshake. It is **not yet** a complete authenticated account pairing flow: the link is not yet bound to a Supabase user/device credential, does not yet provision a revocable cloud device identity, and does not yet relay notifications or health metrics. Do not treat the local link flag as a security credential.
+
+## Build locally
+
+### Web control centre
+
+Requirements: Node.js 22 and npm.
+
+1. `npm install`
 2. Copy `.env.example` to `.env.local`.
-3. Set:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-4. Start: `npm run dev`
-5. Open `http://localhost:3000`.
+3. Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+4. Run `npm run dev`.
 
-The same two variables are configured in the Vercel project for Production, Preview and Development.
+### Android phone and watch apps
 
-## Build the Wear OS APK
-
-Requirements: JDK 17, Android SDK Platform 35 and Gradle 8.11.1.
+Requirements: JDK 17, Android SDK Platform 35, Build Tools 35.0.0 and Gradle 8.11.1.
 
 ```bash
-gradle :wear:assembleDebug
+gradle :phone:assembleDebug :wear:assembleDebug
 ```
 
-APK output:
+Outputs:
 
-```
-wear/build/outputs/apk/debug/wear-debug.apk
-```
+- `phone/build/outputs/apk/debug/phone-debug.apk`
+- `wear/build/outputs/apk/debug/wear-debug.apk`
 
-GitHub Actions builds this APK on pushes and pull requests affecting the Wear OS project. Download the artifact from the workflow run.
+GitHub Actions builds both packages and uploads separate artifacts for each run.
 
-## Deployment
+## Production readiness status
 
-The `main` branch is connected to the Vercel project `anishos`. A push to `main` triggers a web deployment. Android builds run separately through GitHub Actions.
+The project is not yet production-ready. Remaining release blockers include:
 
-## Important implementation boundaries
+1. Bind local device pairing to authenticated Supabase accounts using short-lived, single-use pairing challenges and revocable device credentials.
+2. Add durable local storage, offline queueing, retry/backoff, and conflict-safe cloud synchronization.
+3. Implement opt-in notification relay with explicit Android notification-listener consent and privacy controls.
+4. Integrate Health Services with granular permission, background limits, consent, retention and deletion controls.
+5. Implement AI through a server-side provider integration with user-configured provider/limits; never ship provider secrets in APKs.
+6. Add automated unit, instrumentation, integration, and device tests.
+7. Configure crash reporting, monitoring, backups, operational alerts and incident response.
+8. Create a protected release-signing process, versioned signed bundles/APKs, staged rollout and rollback.
+9. Test on physical Galaxy Watch4 hardware and supported Android phone/One UI versions.
+10. Enable Supabase leaked-password protection and review production Auth, rate-limit and email-confirmation settings.
 
-The current watch-registration form creates a database record; it does **not** perform Bluetooth pairing. Live phone synchronization, notification relay, Health Services integration, cloud AI, background sync, production signing and release automation are future milestones. Health data is not collected by this starter build.
+No health metrics or notifications are collected or relayed by the current build. AI is not connected. The current local link state is a development handshake only.
 
-AnishOS is an application ecosystem for Wear OS. It does not replace, root, unlock or modify the Galaxy Watch's underlying Samsung/Google operating system.
-
-## Roadmap
-
-1. Stabilize the watch app and CI build.
-2. Build the Android phone companion and secure watch pairing flow.
-3. Add authenticated device sync through Supabase Edge Functions.
-4. Add opt-in Health Services integration with granular permissions.
-5. Add the AI assistant through a server-side provider integration.
-6. Add production signing, release channels and device testing.
+AnishOS is an application ecosystem. It does not replace or modify Samsung's underlying operating system or launcher.
