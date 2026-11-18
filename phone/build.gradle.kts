@@ -21,6 +21,14 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 }
+// Use the official companion artwork committed at the repository root.
+tasks.register<Copy>("installCompanionLauncherIcon") {
+    from(rootProject.file("AnishOS-Phone-icon.png"))
+    into(layout.projectDirectory.dir("src/main/res/mipmap-nodpi"))
+    rename { "anishos_launcher.png" }
+}
+tasks.named("preBuild").configure { dependsOn("installCompanionLauncherIcon") }
+
 dependencies {
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
 }
