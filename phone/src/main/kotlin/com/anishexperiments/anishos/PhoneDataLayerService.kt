@@ -20,6 +20,16 @@ class PhoneDataLayerService : WearableListenerService() {
                     .putBoolean(KEY_PENDING, false)
                     .apply()
             }
+            "/anishos/health/metrics" -> {
+                val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+                if (!prefs.getBoolean(KEY_LINKED, false) ||
+                    prefs.getString(KEY_LINKED_NODE, null) != event.sourceNodeId
+                ) return
+                val payload = try { String(event.data, Charsets.UTF_8) } catch (_: Exception) { return }
+                prefs.edit().putString(KEY_LATEST_HEALTH, payload)
+                    .putLong(KEY_HEALTH_RECEIVED_AT, System.currentTimeMillis()).apply()
+                HealthCloudSync.enqueue(this, payload)
+            }
             else -> super.onMessageReceived(event)
         }
     }
@@ -34,5 +44,7 @@ class PhoneDataLayerService : WearableListenerService() {
         const val KEY_PENDING = "pending"
         const val KEY_LINKED_NODE = "linked_node"
         const val KEY_LINKED = "linked"
+        const val KEY_LATEST_HEALTH = "latest_health"
+        const val KEY_HEALTH_RECEIVED_AT = "health_received_at"
     }
 }
