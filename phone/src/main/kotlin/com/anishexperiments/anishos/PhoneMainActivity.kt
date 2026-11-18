@@ -91,6 +91,7 @@ class PhoneMainActivity : Activity() {
         addGap(8)
         button("ACCEPT WATCH CONNECTION") { acceptRequest() }
         button("REFRESH STATUS") { refreshState() }
+        button("REVOKE PHONE ↔ WATCH LINK") { revokeLink() }
         addGap(16)
         root.addView(text("AnishOS uses the Wear OS Data Layer to exchange app messages between a paired Android phone and watch. This does not change the phone's system Bluetooth pairing.", 11f, muted))
         addGap(14)
@@ -123,6 +124,9 @@ class PhoneMainActivity : Activity() {
 
     private fun refreshState() {
         val prefs = getSharedPreferences(PhoneDataLayerService.PREFS, MODE_PRIVATE)
+        val pendingAt = prefs.getLong(PhoneDataLayerService.KEY_REQUESTED_AT, 0L)
+        val isExpired = pendingAt > 0L && System.currentTimeMillis() - pendingAt > 120_000L
+        if (isExpired) prefs.edit().putBoolean(PhoneDataLayerService.KEY_PENDING, false).remove(PhoneDataLayerService.KEY_PENDING_NODE).apply()
         val pending = prefs.getBoolean(PhoneDataLayerService.KEY_PENDING, false)
         val linked = prefs.getBoolean(PhoneDataLayerService.KEY_LINKED, false)
         when {
@@ -140,6 +144,27 @@ class PhoneMainActivity : Activity() {
             }
         }
         actionLabel.setTextColor(if (pending) cyan else muted)
+    }
+
+    private fun revokeLink() {
+        val prefs = getSharedPreferences(PhoneDataLayerService.PREFS, MODE_PRIVATE)
+        val nodeId = prefs.getString(PhoneDataLayerService.KEY_LINKED_NODE, null)
+        if (nodeId.isNullOrBlank()) {
+            prefs.edit().putBoolean(PhoneDataLayerService.KEY_LINKED, false).apply()
+            refreshState()
+            return
+        }
+        Wearable.getMessageClient(this)
+            .sendMessage(nodeId, PhoneDataLayerService.LINK_REVOKED_PATH, byteArrayOf())
+            .addOnCompleteListener {
+                prefs.edit()
+                    .remove(PhoneDataLayerService.KEY_LINKED_NODE)
+                    .putBoolean(PhoneDataLayerService.KEY_LINKED, false)
+                    .putBoolean(PhoneDataLayerService.KEY_PENDING, false)
+                    .remove(PhoneDataLayerService.KEY_PENDING_NODE)
+                    .apply()
+                refreshState()
+            }
     }
 
     private fun acceptRequest() {

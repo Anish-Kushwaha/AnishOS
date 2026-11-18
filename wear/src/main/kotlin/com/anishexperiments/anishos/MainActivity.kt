@@ -357,6 +357,7 @@ class MainActivity : Activity() {
         ))
         root.addView(statusPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
         primaryButton(if (linked) "REFRESH PHONE LINK" else "REQUEST PHONE LINK") { requestPhoneLink() }
+        if (linked) secondaryButton("REVOKE PHONE LINK") { revokePhoneLink() }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -368,6 +369,25 @@ class MainActivity : Activity() {
             startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
         }
         secondaryButton("BACK TO SYSTEM") { showHome() }
+    }
+
+    private fun revokePhoneLink() {
+        val prefs = getSharedPreferences(WearDataLayerService.PREFS, MODE_PRIVATE)
+        val nodeId = prefs.getString(WearDataLayerService.KEY_LINKED_NODE, null)
+        if (nodeId.isNullOrBlank()) {
+            prefs.edit().putBoolean(WearDataLayerService.KEY_LINKED, false).apply()
+            showPhone()
+            return
+        }
+        Wearable.getMessageClient(this)
+            .sendMessage(nodeId, WearDataLayerService.LINK_REVOKED_PATH, byteArrayOf())
+            .addOnCompleteListener {
+                prefs.edit()
+                    .remove(WearDataLayerService.KEY_LINKED_NODE)
+                    .putBoolean(WearDataLayerService.KEY_LINKED, false)
+                    .apply()
+                showPhone()
+            }
     }
 
     private fun requestPhoneLink() {

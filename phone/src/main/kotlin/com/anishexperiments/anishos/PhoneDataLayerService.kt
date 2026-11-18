@@ -13,13 +13,6 @@ class PhoneDataLayerService : WearableListenerService() {
                     .putBoolean(KEY_PENDING, true)
                     .apply()
             }
-            LINK_ACCEPTED_PATH -> {
-                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                    .putString(KEY_LINKED_NODE, event.sourceNodeId)
-                    .putBoolean(KEY_LINKED, true)
-                    .putBoolean(KEY_PENDING, false)
-                    .apply()
-            }
             LINK_REVOKED_PATH -> {
                 getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                     .remove(KEY_LINKED_NODE)
