@@ -59,6 +59,8 @@ class PhoneMainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         refreshState()
+        if (::healthCloudStatusLabel.isInitialized) refreshHealthPanel()
+        HealthCloudSync.retry(this)
     }
 
     override fun onDestroy() {
@@ -338,8 +340,7 @@ class PhoneMainActivity : Activity() {
                 val payload = pending ?: getSharedPreferences(HEALTH_CONNECT_PREFS, MODE_PRIVATE).getString(KEY_SLEEP_BUNDLE, null) ?: latest
                 if (payload != null) {
                     HealthCloudRepository(this).syncEncrypted(session, payload)
-                    getSharedPreferences(HealthCloudRepository.PREFS, MODE_PRIVATE).edit()
-                        .remove("pending_payload").apply()
+                HealthCloudSync.retry(this)
                 }
                 runOnUiThread {
                     refreshHealthPanel()
@@ -360,12 +361,14 @@ class PhoneMainActivity : Activity() {
                 val cloud = HealthCloudRepository(this)
                 if (!cloud.hasConsent()) throw IllegalStateException("Enable cloud health consent first.")
                 val prefs = getSharedPreferences(HealthCloudRepository.PREFS, MODE_PRIVATE)
-                val pending = prefs.getString("pending_payload", null)
-                val latest = getSharedPreferences(PhoneDataLayerService.PREFS, MODE_PRIVATE)
-                    .getString(PhoneDataLayerService.KEY_LATEST_HEALTH, null)
-                val payload = pending ?: getSharedPreferences(HEALTH_CONNECT_PREFS, MODE_PRIVATE).getString(KEY_SLEEP_BUNDLE, null) ?: latest ?: throw IllegalStateException("No health sample is available to sync.")
-                cloud.syncEncrypted(session, payload)
-                prefs.edit().remove("pending_payload").apply()
+                val pending = prefs.getString("pending_queue", "[]") ?: "[]"
+                if (pending == "[]") {
+                    val latest = getSharedPreferences(PhoneDataLayerService.PREFS, MODE_PRIVATE)
+                        .getString(PhoneDataLayerService.KEY_LATEST_HEALTH, null)
+                    val payload = getSharedPreferences(HEALTH_CONNECT_PREFS, MODE_PRIVATE).getString(KEY_SLEEP_BUNDLE, null) ?: latest
+                        ?: throw IllegalStateException("No health sample is available to sync.")
+                    HealthCloudSync.enqueue(this, payload)
+                } else HealthCloudSync.retry(this)
                 runOnUiThread { refreshHealthPanel() }
             } catch (error: Exception) {
                 runOnUiThread { healthCloudStatusLabel.text = error.localizedMessage ?: "Health sync retry failed." }
@@ -379,7 +382,7 @@ class PhoneMainActivity : Activity() {
                 val session = auth.currentSession() ?: throw IllegalStateException("Sign in again to revoke cloud consent.")
                 HealthCloudRepository(this).revokeConsentAndDelete(session)
                 getSharedPreferences(HealthCloudRepository.PREFS, MODE_PRIVATE).edit()
-                    .remove("pending_payload").apply()
+                    .remove("pending_payload").remove("pending_queue").apply()
                 runOnUiThread {
                     refreshHealthPanel()
                     actionLabel.text = "Cloud health consent revoked and encrypted cloud records deleted. Local watch metrics remain on your devices."
