@@ -28,7 +28,10 @@
 - Native Android companion app.
 - Wear OS Data Layer listener.
 - Receives watch link requests.
-- User-confirmed app-link handshake and local link state.
+- User-confirmed app-link handshake, local link state and revocation.
+- Supabase email/password sign-in and account creation.
+- Session tokens encrypted with Android Keystore AES-GCM.
+- After a user accepts a watch request, the phone creates a pending device record through the user's Supabase JWT and owner-scoped RLS.
 - AMOLED / neon-blue interface.
 
 ### Web control centre
@@ -49,7 +52,7 @@
 
 The phone and watch applications share the same Android application ID and use Google Play services Wear OS Data Layer messages. The phone must have the companion installed and the user must explicitly accept a request.
 
-This is an app-to-app local link handshake. It is **not yet** a complete authenticated account pairing flow: the link is not yet bound to a Supabase user/device credential, does not yet provision a revocable cloud device identity, and does not yet relay notifications or health metrics. Do not treat the local link flag as a security credential.
+The phone companion authenticates the account with Supabase and stores the session encrypted using Android Keystore. After the user accepts a watch request, the phone creates a user-owned `pending` device record through PostgREST; RLS prevents a client from promoting its own record to `paired`. The local Data Layer link is still not a cryptographic device credential and is not yet bound to a revocable cloud device identity. Notification relay and health metrics are not yet implemented.
 
 ## Build locally
 
@@ -81,7 +84,7 @@ GitHub Actions builds both packages and uploads separate artifacts for each run.
 
 The project is not yet production-ready. Remaining release blockers include:
 
-1. Bind local device pairing to authenticated Supabase accounts using short-lived, single-use pairing challenges and revocable device credentials.
+1. Complete device identity provisioning: bind the local Data Layer link to a short-lived, single-use pairing challenge and revocable device credentials; add server-verified status transitions and heartbeat.
 2. Add durable local storage, offline queueing, retry/backoff, and conflict-safe cloud synchronization.
 3. Implement opt-in notification relay with explicit Android notification-listener consent and privacy controls.
 4. Integrate Health Services with granular permission, background limits, consent, retention and deletion controls.
