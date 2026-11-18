@@ -1,6 +1,6 @@
 "use client";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 type Device = { id: string; device_name: string; device_model: string | null; status: "pending" | "paired" | "revoked"; created_at: string };
 export default function Home() {
@@ -18,8 +18,8 @@ export default function Home() {
   const [error,setError] = useState("");
   useEffect(() => {
     let active=true;
-    supabase.auth.getSession().then(({data})=>{if(active){setUser(data.session?.user??null);setLoading(false);}});
-    const {data:listener}=supabase.auth.onAuthStateChange((_event,session)=>setUser(session?.user??null));
+    supabase.auth.getSession().then(({data}: {data:{session:Session|null}})=>{if(active){setUser(data.session?.user??null);setLoading(false);}});
+    const {data:listener}=supabase.auth.onAuthStateChange((_event:AuthChangeEvent,session:Session|null)=>setUser(session?.user??null));
     return ()=>{active=false;listener.subscription.unsubscribe();};
   },[supabase]);
   useEffect(()=>{
@@ -89,7 +89,7 @@ export default function Home() {
           <div className="feature"><div className="featureicon">⌁</div><div><strong>Health & activity</strong><small>Health data stays off until explicit device permissions and opt-in sync are implemented.</small></div></div>
           <div className="feature"><div className="featureicon">◈</div><div><strong>Phone connectivity</strong><small>Bluetooth and notification bridge are planned for the companion integration.</small></div></div>
         </article>
-        <article className="panel"><span className="eyebrow">ACCOUNT SECURITY</span><h2 style={{marginTop:8}}>Protected by Supabase</h2><p>Each account can access only its own profile and registered devices. Database row-level security is enabled for both tables.</p><div className="statuspill" style={{marginTop:16}}><span className="dot"/> ROW-LEVEL SECURITY ACTIVE</div></article>
+        <article className="panel"><span className="eyebrow">ACCOUNT SECURITY</span><h2 style={{marginTop:8}}>Protected by Supabase</h2><p>Each account can access only its own profile and registered device records. Database row-level security is enabled for both tables.</p><div className="statuspill" style={{marginTop:16}}><span className="dot"/> ROW-LEVEL SECURITY ACTIVE</div></article>
       </aside></section>
       {error&&<div className="error" role="alert">{error}</div>}{message&&<div className="success" role="status">{message}</div>}
     </>}
