@@ -18,6 +18,14 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 }
+// Use the official Wear artwork committed at the repository root.
+tasks.register<Copy>("installWearLauncherIcon") {
+    from(rootProject.file("AnishOS-wear-icon.png"))
+    into(layout.projectDirectory.dir("src/main/res/mipmap-nodpi"))
+    rename { "anishos_launcher.png" }
+}
+tasks.named("preBuild").configure { dependsOn("installWearLauncherIcon") }
+
 dependencies {
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
 }
