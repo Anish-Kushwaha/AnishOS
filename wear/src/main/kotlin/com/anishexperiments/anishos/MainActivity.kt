@@ -1,8 +1,11 @@
 package com.anishexperiments.anishos
 
+import android.Manifest
 import android.app.Activity
 import android.bluetooth.BluetoothManager
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.provider.Settings
@@ -19,6 +22,7 @@ class MainActivity : Activity() {
     private val panel = Color.rgb(13, 24, 42)
     private val blue = Color.rgb(91, 164, 255)
     private val muted = Color.rgb(145, 164, 190)
+    private val bluetoothPermissionRequest = 41
     private var timer: CountDownTimer? = null
     private var remaining = 25 * 60 * 1000L
     private var running = false
@@ -36,6 +40,11 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         timer?.cancel()
         super.onDestroy()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == bluetoothPermissionRequest) showPhone()
     }
 
     private fun base(title: String, subtitle: String): LinearLayout {
@@ -132,7 +141,7 @@ class MainActivity : Activity() {
     }
 
     private fun startTimer() {
-        if (running) return
+        if (running || remaining <= 0L) return
         running = true
         focusActionButton.text = "Pause session"
         timer = object : CountDownTimer(remaining, 1000) {
@@ -171,14 +180,25 @@ class MainActivity : Activity() {
 
     private fun showPhone() {
         base("Phone connection", "BLUETOOTH STATUS")
-        val manager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
-        val enabled = manager.adapter?.isEnabled == true
-        root.addView(text(if (enabled) "Bluetooth is enabled" else "Bluetooth is disabled", 16, if (enabled) Color.rgb(123, 224, 177) else Color.WHITE, true).apply {
-            setPadding(0, 24, 0, 12)
-        })
-        root.addView(text("This build does not yet establish a companion-phone link or relay notifications. The Bluetooth setting below opens the Wear OS system controls.", 11, muted, false))
-        button("Open Bluetooth settings") {
-            startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+        ) {
+            root.addView(text("Allow Bluetooth access to read the watch's Bluetooth status.", 12, muted, false).apply {
+                setPadding(0, 20, 0, 12)
+            })
+            button("Allow Bluetooth access") {
+                requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_CONNECT), bluetoothPermissionRequest)
+            }
+        } else {
+            val manager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+            val enabled = try { manager.adapter?.isEnabled == true } catch (_: SecurityException) { false }
+            root.addView(text(if (enabled) "Bluetooth is enabled" else "Bluetooth is disabled", 16, if (enabled) Color.rgb(123, 224, 177) else Color.WHITE, true).apply {
+                setPadding(0, 24, 0, 12)
+            })
+            root.addView(text("This build does not yet establish a companion-phone link or relay notifications. The Bluetooth setting below opens the Wear OS system controls.", 11, muted, false))
+            button("Open Bluetooth settings") {
+                startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+            }
         }
         button("Back to dashboard") { showHome() }
     }
