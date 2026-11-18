@@ -172,7 +172,7 @@ class MainActivity : Activity() {
         card.addView(icon, LinearLayout.LayoutParams(dp(38), dp(38)))
         val copy = vertical()
         copy.setPadding(dp(10), 0, dp(4), 0)
-        copy.addView(label("$index  /  $title.uppercase()", 10f, white, true))
+        copy.addView(label("$index  /  ${title.uppercase(Locale.ROOT)}", 10f, white, true))
         addGap(copy, 4)
         copy.addView(label(description, 8.5f, muted))
         card.addView(copy, LinearLayout.LayoutParams(0, -2, 1f))
