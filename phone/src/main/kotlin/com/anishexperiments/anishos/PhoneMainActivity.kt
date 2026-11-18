@@ -5,6 +5,8 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.content.Intent
+import android.provider.Settings
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -132,6 +134,22 @@ class PhoneMainActivity : Activity() {
         button("ACCEPT WATCH CONNECTION") { acceptRequest() }
         button("REFRESH STATUS") { refreshState() }
         button("REVOKE PHONE ↔ WATCH LINK") { revokeLink() }
+        addGap(10)
+        root.addView(text("NOTIFICATION RELAY  /  OPTIONAL", 10f, blue, true))
+        addGap(6)
+        button("OPEN ANDROID NOTIFICATION ACCESS") {
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+        }
+        button("ENABLE NOTIFICATION RELAY") {
+            getSharedPreferences(NotificationRelayService.PREFS, MODE_PRIVATE).edit()
+                .putBoolean(NotificationRelayService.KEY_RELAY_ENABLED, true).apply()
+            actionLabel.text = "Relay enabled. Android notification access must also be granted in system settings."
+        }
+        button("DISABLE NOTIFICATION RELAY") {
+            getSharedPreferences(NotificationRelayService.PREFS, MODE_PRIVATE).edit()
+                .putBoolean(NotificationRelayService.KEY_RELAY_ENABLED, false).apply()
+            actionLabel.text = "Notification relay disabled. No new notification text will be forwarded."
+        }
         addGap(16)
         root.addView(text("Pairing uses the Wear OS Data Layer. Sign in to associate the watch record with your AnishOS account. This does not modify system Bluetooth pairing.", 11f, muted))
         addGap(14)
