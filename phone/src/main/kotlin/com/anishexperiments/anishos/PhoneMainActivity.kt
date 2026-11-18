@@ -256,7 +256,7 @@ class PhoneMainActivity : Activity() {
         }
         val sleepJson = getSharedPreferences(HEALTH_CONNECT_PREFS, MODE_PRIVATE).getString(KEY_SLEEP_SESSIONS, null)
         val sleepCount = try { if (sleepJson.isNullOrBlank()) 0 else org.json.JSONArray(sleepJson).length() } catch (_: Exception) { 0 }
-        healthMetricsLabel.text = healthMetricsLabel.text.toString() + "\\nSLEEP SESSIONS (14 DAYS)  $sleepCount"
+        healthMetricsLabel.text = healthMetricsLabel.text.toString() + "\nSLEEP SESSIONS (14 DAYS)  $sleepCount"
         val cloud = HealthCloudRepository(this)
         healthCloudStatusLabel.text = if (cloud.hasConsent()) {
             val last = cloud.lastSyncAt()
@@ -335,7 +335,7 @@ class PhoneMainActivity : Activity() {
                     .getString("pending_payload", null)
                 val latest = getSharedPreferences(PhoneDataLayerService.PREFS, MODE_PRIVATE)
                     .getString(PhoneDataLayerService.KEY_LATEST_HEALTH, null)
-                val payload = pending ?: latest
+                val payload = pending ?: getSharedPreferences(HEALTH_CONNECT_PREFS, MODE_PRIVATE).getString(KEY_SLEEP_BUNDLE, null) ?: latest
                 if (payload != null) {
                     HealthCloudRepository(this).syncEncrypted(session, payload)
                     getSharedPreferences(HealthCloudRepository.PREFS, MODE_PRIVATE).edit()
@@ -363,7 +363,7 @@ class PhoneMainActivity : Activity() {
                 val pending = prefs.getString("pending_payload", null)
                 val latest = getSharedPreferences(PhoneDataLayerService.PREFS, MODE_PRIVATE)
                     .getString(PhoneDataLayerService.KEY_LATEST_HEALTH, null)
-                val payload = pending ?: latest ?: throw IllegalStateException("No health sample is available to sync.")
+                val payload = pending ?: getSharedPreferences(HEALTH_CONNECT_PREFS, MODE_PRIVATE).getString(KEY_SLEEP_BUNDLE, null) ?: latest ?: throw IllegalStateException("No health sample is available to sync.")
                 cloud.syncEncrypted(session, payload)
                 prefs.edit().remove("pending_payload").apply()
                 runOnUiThread { refreshHealthPanel() }
