@@ -117,7 +117,7 @@ class MainActivity : Activity() {
             setPadding(dp(12), dp(12), dp(12), dp(16))
         }
         root = vertical()
-        scroll.addView(root, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(root, android.view.ViewGroup.LayoutParams(-1, -2))
         setContentView(scroll)
 
         val top = LinearLayout(this).apply {
