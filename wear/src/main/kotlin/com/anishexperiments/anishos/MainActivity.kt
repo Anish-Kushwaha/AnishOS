@@ -18,7 +18,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 
 class MainActivity : Activity() {
-    private val background = Color.rgb(5, 9, 20)
+    private val screenBackgroundColor = Color.rgb(5, 9, 20)
     private val panel = Color.rgb(13, 24, 42)
     private val blue = Color.rgb(91, 164, 255)
     private val muted = Color.rgb(145, 164, 190)
@@ -32,8 +32,8 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = background
-        window.navigationBarColor = background
+        window.statusBarColor = screenBackgroundColor
+        window.navigationBarColor = screenBackgroundColor
         showHome()
     }
 
@@ -49,7 +49,7 @@ class MainActivity : Activity() {
 
     private fun base(title: String, subtitle: String): LinearLayout {
         val scroll = ScrollView(this).apply {
-            setBackgroundColor(background)
+            setBackgroundColor(screenBackgroundColor)
             isFillViewport = true
         }
         root = LinearLayout(this).apply {
