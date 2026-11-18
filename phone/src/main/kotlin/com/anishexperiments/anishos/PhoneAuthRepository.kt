@@ -59,25 +59,27 @@ class SecureSessionStore(context: Context) {
         prefs.edit().putString("blob", Base64.encodeToString(packed, Base64.NO_WRAP)).apply()
     }
 
-    fun load(): AnishSession? = try {
-        val encoded = prefs.getString("blob", null) ?: return null
-        val packed = Base64.decode(encoded, Base64.NO_WRAP)
-        if (packed.size <= 12) return null
-        val iv = packed.copyOfRange(0, 12)
-        val ciphertext = packed.copyOfRange(12, packed.size)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, iv))
-        val json = JSONObject(String(cipher.doFinal(ciphertext), Charsets.UTF_8))
-        AnishSession(
-            accessToken = json.getString("access"),
-            refreshToken = json.getString("refresh"),
-            expiresAt = json.getLong("expires"),
-            userId = json.getString("user"),
-            email = json.optString("email")
-        )
-    } catch (_: Exception) {
-        clear()
-        null
+    fun load(): AnishSession? {
+        return try {
+            val encoded = prefs.getString("blob", null) ?: return null
+            val packed = Base64.decode(encoded, Base64.NO_WRAP)
+            if (packed.size <= 12) return null
+            val iv = packed.copyOfRange(0, 12)
+            val ciphertext = packed.copyOfRange(12, packed.size)
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, iv))
+            val json = JSONObject(String(cipher.doFinal(ciphertext), Charsets.UTF_8))
+            AnishSession(
+                accessToken = json.getString("access"),
+                refreshToken = json.getString("refresh"),
+                expiresAt = json.getLong("expires"),
+                userId = json.getString("user"),
+                email = json.optString("email")
+            )
+        } catch (_: Exception) {
+            clear()
+            null
+        }
     }
 
     fun clear() {

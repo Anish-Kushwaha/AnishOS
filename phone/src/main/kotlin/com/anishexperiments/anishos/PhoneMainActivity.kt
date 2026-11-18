@@ -199,25 +199,30 @@ class PhoneMainActivity : Activity() {
     }
 
     private fun refreshAccount() {
-        val session = auth.currentSession()
-        if (session == null) {
-            accountLabel.text = "SIGN IN REQUIRED"
-            accountLabel.setTextColor(cyan)
-            emailInput.visibility = View.VISIBLE
-            passwordInput.visibility = View.VISIBLE
-            authActions.removeAllViews()
-            actionButton(authActions, "SIGN IN") { authenticate(false) }
-            actionButton(authActions, "CREATE ACCOUNT") { authenticate(true) }
-        } else {
-            accountLabel.text = "SIGNED IN  /  ${session.email}"
-            accountLabel.setTextColor(Color.rgb(55, 235, 174))
-            emailInput.visibility = View.GONE
-            passwordInput.visibility = View.GONE
-            authActions.removeAllViews()
-            actionButton(authActions, "SIGN OUT") {
-                executor.execute {
-                    auth.signOut()
-                    runOnUiThread { refreshAccount(); refreshState() }
+        accountLabel.text = "CHECKING SESSION…"
+        executor.execute {
+            val session = auth.currentSession()
+            runOnUiThread {
+                if (session == null) {
+                    accountLabel.text = "SIGN IN REQUIRED"
+                    accountLabel.setTextColor(cyan)
+                    emailInput.visibility = View.VISIBLE
+                    passwordInput.visibility = View.VISIBLE
+                    authActions.removeAllViews()
+                    actionButton(authActions, "SIGN IN") { authenticate(false) }
+                    actionButton(authActions, "CREATE ACCOUNT") { authenticate(true) }
+                } else {
+                    accountLabel.text = "SIGNED IN  /  ${session.email}"
+                    accountLabel.setTextColor(Color.rgb(55, 235, 174))
+                    emailInput.visibility = View.GONE
+                    passwordInput.visibility = View.GONE
+                    authActions.removeAllViews()
+                    actionButton(authActions, "SIGN OUT") {
+                        executor.execute {
+                            auth.signOut()
+                            runOnUiThread { refreshAccount(); refreshState() }
+                        }
+                    }
                 }
             }
         }
@@ -299,7 +304,7 @@ class PhoneMainActivity : Activity() {
     }
 
     private fun acceptRequest() {
-        val session = auth.currentSession()
+        val session = sessionStore.load()
         if (session == null) {
             stateLabel.text = "SIGN IN BEFORE PAIRING"
             actionLabel.text = "Use your AnishOS account above, then accept the watch request."
