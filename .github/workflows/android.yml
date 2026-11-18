@@ -8,6 +8,7 @@ on:
       - "phone/**"
       - "*.gradle.kts"
       - "settings.gradle.kts"
+      - "gradle.properties"
       - ".github/workflows/android.yml"
   pull_request:
     branches: [main]
